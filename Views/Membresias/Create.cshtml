@@ -1,0 +1,35 @@
+﻿@model PowerGym.Models.Membresia
+<h1>Registrar membresía</h1>
+
+<form asp-action="Create" method="post">
+<div asp-validation-summary="All" class="text-danger mb-3"></div>
+
+<div class="mb-3">
+<label class="form-label">Socio</label>
+<select asp-for="IdSocio"
+        asp-items="@(ViewBag.Socios as IEnumerable<Microsoft.AspNetCore.Mvc.Rendering.SelectListItem>)"
+        class="form-select">
+<option value="">Seleccione un socio</option>
+</select>
+<span asp-validation-for="IdSocio" class="text-danger"></span>
+</div>
+
+<div class="mb-3">
+<label class="form-label">Plan</label>
+<select asp-for="IdPlan"
+        asp-items="@(ViewBag.Planes as IEnumerable<Microsoft.AspNetCore.Mvc.Rendering.SelectListItem>)"
+        class="form-select">
+<option value="">Seleccione un plan</option>
+</select>
+<span asp-validation-for="IdPlan" class="text-danger"></span>
+</div>
+
+<div class="mb-3">
+<label asp-for="FechaInicio" class="form-label">Fecha de inicio</label>
+<input asp-for="FechaInicio" type="date" class="form-control" />
+<span asp-validation-for="FechaInicio" class="text-danger"></span>
+</div>
+
+<button class="btn btn-primary">Guardar membresía</button>
+<a asp-action="Index" class="btn btn-secondary">Volver</a>
+</form>

@@ -1,0 +1,13 @@
+﻿@model PowerGym.Models.Socio
+<h1>Editar socio</h1>
+<form asp-action="Edit" method="post">
+<input asp-for="IdSocio" type="hidden"/>
+<div asp-validation-summary="ModelOnly" class="text-danger"></div>
+<div class="mb-3"><label asp-for="Nombres"></label><input asp-for="Nombres" class="form-control"/></div>
+<div class="mb-3"><label asp-for="Apellidos"></label><input asp-for="Apellidos" class="form-control"/></div>
+<div class="mb-3"><label asp-for="Documento"></label><input asp-for="Documento" class="form-control"/></div>
+<div class="mb-3"><label asp-for="Telefono"></label><input asp-for="Telefono" class="form-control"/></div>
+<div class="mb-3"><label asp-for="Correo"></label><input asp-for="Correo" class="form-control"/></div>
+<button class="btn btn-primary">Guardar cambios</button>
+<a asp-action="Index" class="btn btn-secondary">Volver</a>
+</form>

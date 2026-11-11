@@ -1,0 +1,24 @@
+﻿@model IEnumerable<PowerGym.Models.Socio>
+<h1>Gestión de socios - POWER GYM</h1>
+@if(TempData["Mensaje"]!=null){<div class="alert alert-success">@TempData["Mensaje"]</div>}
+<a asp-action="Create" class="btn btn-primary mb-3">Registrar socio</a>
+<form method="get" class="mb-3">
+<input name="buscar" value="@ViewBag.Buscar" placeholder="Buscar socio o documento" class="form-control" />
+<button class="btn btn-outline-primary mt-2">Buscar</button>
+</form>
+<table class="table table-striped">
+<thead><tr><th>Nombre</th><th>Documento</th><th>Teléfono</th><th>Fecha</th><th>Acciones</th></tr></thead>
+<tbody>
+@foreach(var s in Model){
+<tr>
+<td>@s.Nombres @s.Apellidos</td><td>@s.Documento</td>
+<td>@s.Telefono</td><td>@s.FechaRegistro.ToString("dd/MM/yyyy")</td>
+<td>
+<a asp-action="Edit" asp-route-id="@s.IdSocio" class="btn btn-sm btn-warning">Editar</a>
+<form asp-action="Desactivar" asp-route-id="@s.IdSocio" method="post" class="d-inline">
+<button class="btn btn-sm btn-danger" onclick="return confirm('¿Desactivar socio?')">Eliminar</button>
+</form>
+</td></tr>
+}
+@if(!Model.Any()){<tr><td colspan="5">No existen socios registrados.</td></tr>}
+</tbody></table>
