@@ -1,0 +1,168 @@
+﻿@model PowerGym.Models.Membresia
+@using Microsoft.AspNetCore.Mvc.Rendering
+
+<div class="modal fade"
+     id="modalNuevaMembresia"
+     tabindex="-1"
+     aria-labelledby="tituloModalNuevaMembresia"
+     aria-hidden="true">
+
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+
+            <form asp-controller="Membresias"
+                  asp-action="Create"
+                  method="post"
+                  id="formNuevaMembresia"
+                  novalidate>
+
+                <div class="modal-header">
+                    <h5 class="modal-title" id="tituloModalNuevaMembresia">
+                        Registrar nueva membresía
+                    </h5>
+                    <button type="button" class="btn-close"
+                            data-bs-dismiss="modal" aria-label="Cerrar">
+                    </button>
+                </div>
+
+                <div class="modal-body">
+
+                    <p class="text-muted">
+                        Completa los datos para registrar una nueva membresía.
+                    </p>
+
+                    <div id="mensajeValidacionMembresia"
+                         class="alert alert-warning d-none"
+                         role="alert" aria-live="polite">
+                    </div>
+
+                    @if (!ViewData.ModelState.IsValid)
+                    {
+                        <div class="alert alert-warning" role="alert">
+                            <strong>Revisa los datos para continuar:</strong>
+                            <div asp-validation-summary="All"></div>
+                        </div>
+                    }
+
+                    <div class="mb-3">
+                        <label asp-for="IdSocio" class="form-label">
+                            Socio
+                        </label>
+
+                        <select asp-for="IdSocio"
+                                asp-items="@(ViewBag.Socios as IEnumerable<SelectListItem>)"
+                                class="form-select" required>
+                            <option value="">Seleccione un socio</option>
+                        </select>
+
+                        <span asp-validation-for="IdSocio"
+                              class="text-danger small"></span>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="IdPlan" class="form-label">
+                            Plan de membresía
+                        </label>
+
+                        <select asp-for="IdPlan"
+                                asp-items="@(ViewBag.Planes as IEnumerable<SelectListItem>)"
+                                class="form-select" required>
+                            <option value="">Seleccione un plan</option>
+                        </select>
+
+                        <span asp-validation-for="IdPlan"
+                              class="text-danger small"></span>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="FechaInicio" class="form-label">
+                            Fecha de inicio
+                        </label>
+
+                        <input asp-for="FechaInicio"
+                               type="date" class="form-control" required />
+
+                        <div class="form-text">
+                            Se establece automáticamente la fecha actual.
+                            Puedes modificarla si es necesario.
+                        </div>
+
+                        <span asp-validation-for="FechaInicio"
+                              class="text-danger small"></span>
+                    </div>
+
+                    <div class="alert alert-light border mb-0">
+                        Comprueba los datos antes de guardar.
+                        Podrás cancelar la operación antes de confirmar.
+                    </div>
+
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button"
+                            class="btn btn-outline-secondary"
+                            data-bs-dismiss="modal">
+                        Cancelar
+                    </button>
+
+                    <button type="submit"
+                            class="btn btn-primary"
+                            id="btnGuardarMembresia">
+                        Guardar membresía
+                    </button>
+                </div>
+
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+(function () {
+    const form = document.getElementById("formNuevaMembresia");
+
+    if (!form || form.dataset.validacionAmigable === "true") return;
+
+    form.dataset.validacionAmigable = "true";
+
+    const socio = form.querySelector('[name="IdSocio"]');
+    const plan = form.querySelector('[name="IdPlan"]');
+    const fecha = form.querySelector('[name="FechaInicio"]');
+    const mensaje = document.getElementById("mensajeValidacionMembresia");
+
+    function ocultarMensaje() {
+        mensaje.textContent = "";
+        mensaje.classList.add("d-none");
+    }
+
+    form.addEventListener("submit", function (event) {
+        let texto = "";
+        let campo = null;
+
+        if (!socio.value) {
+            texto = "Selecciona el socio que deseas registrar.";
+            campo = socio;
+        } else if (!plan.value) {
+            texto = "Selecciona el plan de membresía que deseas asignar.";
+            campo = plan;
+        } else if (!fecha.value) {
+            texto = "Selecciona una fecha de inicio para la membresía.";
+            campo = fecha;
+        }
+
+        if (texto) {
+            event.preventDefault();
+            mensaje.textContent = texto;
+            mensaje.classList.remove("d-none");
+            campo.focus();
+            return;
+        }
+
+        ocultarMensaje();
+    });
+
+    [socio, plan, fecha].forEach(function (campo) {
+        campo.addEventListener("change", ocultarMensaje);
+    });
+})();
+</script>

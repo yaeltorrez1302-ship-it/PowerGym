@@ -13,6 +13,15 @@ public class MembresiasController : Controller
 
     public async Task<IActionResult> Index()
     {
+        await CargarListasAsync();
+
+        ViewBag.NuevaMembresia = new Membresia
+        {
+            FechaInicio = DateTime.Today
+        };
+
+        ViewBag.AbrirModal = false;
+
         return View(await dao.ListarAsync());
     }
 
@@ -21,12 +30,14 @@ public class MembresiasController : Controller
         var socios = await dao.ObtenerSociosAsync();
         var planes = await dao.ObtenerPlanesAsync();
 
-        ViewBag.Socios = socios.Select(s => new SelectListItem {
+        ViewBag.Socios = socios.Select(s => new SelectListItem
+        {
             Value = s.IdSocio.ToString(),
             Text = $"{s.Nombres} {s.Apellidos} - {s.Documento}"
         });
 
-        ViewBag.Planes = planes.Select(p => new SelectListItem {
+        ViewBag.Planes = planes.Select(p => new SelectListItem
+        {
             Value = p.IdPlan.ToString(),
             Text = $"{p.Nombre} - Bs. {p.Precio} ({p.DuracionDias} días)"
         });
@@ -36,7 +47,11 @@ public class MembresiasController : Controller
     public async Task<IActionResult> Create()
     {
         await CargarListasAsync();
-        return View(new Membresia { FechaInicio = DateTime.Today });
+
+        return View(new Membresia
+        {
+            FechaInicio = DateTime.Today
+        });
     }
 
     [HttpPost]
@@ -46,19 +61,30 @@ public class MembresiasController : Controller
         if (!ModelState.IsValid)
         {
             await CargarListasAsync();
-            return View(m);
+            ViewBag.NuevaMembresia = m;
+            ViewBag.AbrirModal = true;
+
+            return View("Index", await dao.ListarAsync());
         }
 
         var creado = await dao.CrearAsync(m);
 
         if (!creado)
         {
-            ModelState.AddModelError("", "No se pudo registrar. Verifique que el socio y el plan estén activos.");
+            ModelState.AddModelError(
+                string.Empty,
+                "No pudimos registrar la membresía. Verifica que el socio y el plan estén activos."
+            );
+
             await CargarListasAsync();
-            return View(m);
+            ViewBag.NuevaMembresia = m;
+            ViewBag.AbrirModal = true;
+
+            return View("Index", await dao.ListarAsync());
         }
 
         TempData["Mensaje"] = "Membresía registrada correctamente.";
+
         return RedirectToAction(nameof(Index));
     }
 
@@ -67,7 +93,9 @@ public class MembresiasController : Controller
     public async Task<IActionResult> Cancelar(int id)
     {
         await dao.CancelarAsync(id);
+
         TempData["Mensaje"] = "Membresía cancelada.";
+
         return RedirectToAction(nameof(Index));
     }
 }

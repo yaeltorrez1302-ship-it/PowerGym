@@ -1,45 +1,190 @@
 ﻿@model IEnumerable<PowerGym.Models.Membresia>
+@using PowerGym.Models
+
+@{
+    var nuevaMembresia =
+        ViewBag.NuevaMembresia as Membresia
+        ?? new Membresia { FechaInicio = DateTime.Today };
+
+    var abrirModal =
+        ViewBag.AbrirModal != null && (bool)ViewBag.AbrirModal;
+}
+
 <h1>Gestión de membresías - POWER GYM</h1>
 
 @if (TempData["Mensaje"] != null)
 {
-    <div class="alert alert-success">@TempData["Mensaje"]</div>
+    <div class="alert alert-success" role="alert">
+        @TempData["Mensaje"]
+    </div>
 }
 
-<a asp-action="Create" class="btn btn-primary mb-3">Registrar membresía</a>
+<button type="button"
+        class="btn btn-primary mb-3"
+        data-bs-toggle="modal"
+        data-bs-target="#modalNuevaMembresia">
+    Registrar membresía
+</button>
 
 <table class="table table-striped table-hover">
-<thead class="table-dark">
-<tr>
-<th>Socio</th><th>Documento</th><th>Plan</th>
-<th>Inicio</th><th>Fin</th><th>Precio</th><th>Estado</th><th>Acciones</th>
-</tr>
-</thead>
-<tbody>
-@foreach (var m in Model)
-{
-<tr>
-<td>@m.NombreSocio</td>
-<td>@m.Documento</td>
-<td>@m.NombrePlan</td>
-<td>@m.FechaInicio.ToString("dd/MM/yyyy")</td>
-<td>@m.FechaFin.ToString("dd/MM/yyyy")</td>
-<td>Bs. @m.PrecioAplicado.ToString("N2")</td>
-<td>@m.Estado</td>
-<td>
-@if (m.Estado == "ACTIVA")
-{
-<form asp-action="Cancelar" asp-route-id="@m.IdMembresia" method="post"
-      onsubmit="return confirm('¿Cancelar esta membresía?');">
-<button class="btn btn-sm btn-danger">Cancelar</button>
-</form>
-}
-</td>
-</tr>
-}
-@if (!Model.Any())
-{
-<tr><td colspan="8" class="text-center">No existen membresías registradas.</td></tr>
-}
-</tbody>
+    <thead class="table-dark">
+        <tr>
+            <th>Socio</th>
+            <th>Documento</th>
+            <th>Plan</th>
+            <th>Inicio</th>
+            <th>Fin</th>
+            <th>Precio</th>
+            <th>Estado</th>
+            <th>Acciones</th>
+        </tr>
+    </thead>
+
+    <tbody>
+        @foreach (var m in Model)
+        {
+            <tr>
+                <td>@m.NombreSocio</td>
+                <td>@m.Documento</td>
+                <td>@m.NombrePlan</td>
+                <td>@m.FechaInicio.ToString("dd/MM/yyyy")</td>
+                <td>@m.FechaFin.ToString("dd/MM/yyyy")</td>
+                <td>Bs. @m.PrecioAplicado.ToString("N2")</td>
+                <td>@m.Estado</td>
+                <td>
+                    @if (m.Estado == "ACTIVA")
+                    {
+                        <form asp-action="Cancelar"
+                              asp-route-id="@m.IdMembresia"
+                              method="post"
+                              onsubmit="return confirm('¿Deseas cancelar esta membresía? Esta operación cambiará su estado.');">
+
+                            <button type="submit"
+                                    class="btn btn-sm btn-danger">
+                                Cancelar
+                            </button>
+                        </form>
+                    }
+                </td>
+            </tr>
+        }
+
+        @if (!Model.Any())
+        {
+            <tr>
+                <td colspan="8" class="text-center">
+                    No existen membresías registradas.
+                </td>
+            </tr>
+        }
+    </tbody>
 </table>
+
+@await Html.PartialAsync("_CrearMembresiaModal", nuevaMembresia)
+
+@section Scripts {
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+
+            const modalElement =
+                document.getElementById("modalNuevaMembresia");
+
+            const form =
+                document.getElementById("formNuevaMembresia");
+
+            if (!modalElement || !form ||
+                typeof bootstrap === "undefined") {
+                return;
+            }
+
+            const modal =
+                bootstrap.Modal.getOrCreateInstance(modalElement);
+
+            let cambios = false;
+            let enviando = false;
+            let cierreConfirmado = false;
+
+            form.addEventListener("input", function () {
+                cambios = true;
+            });
+
+            form.addEventListener("change", function () {
+                cambios = true;
+            });
+
+            form.addEventListener("submit", function () {
+                enviando = true;
+            });
+
+            // Enter guarda, excepto cuando se está usando un selector.
+            form.addEventListener("keydown", function (event) {
+
+                if (event.key === "Enter" &&
+                    !["SELECT", "BUTTON"].includes(event.target.tagName)) {
+
+                    event.preventDefault();
+                    form.requestSubmit();
+                }
+            });
+
+            // Ctrl + S guarda el formulario.
+            document.addEventListener("keydown", function (event) {
+
+                if (!modalElement.classList.contains("show")) {
+                    return;
+                }
+
+                if ((event.ctrlKey || event.metaKey) &&
+                    event.key.toLowerCase() === "s") {
+
+                    event.preventDefault();
+                    form.requestSubmit();
+                }
+            });
+
+            // Esc cierra mediante Bootstrap.
+            // Si existen cambios, se pide confirmación.
+            modalElement.addEventListener("hide.bs.modal", function (event) {
+
+                if (cambios && !enviando && !cierreConfirmado) {
+
+                    const confirmar = window.confirm(
+                        "Hay cambios sin guardar. ¿Deseas cerrar el formulario? " +
+                        "Si eliges continuar, conservarás los datos."
+                    );
+
+                    if (!confirmar) {
+                        event.preventDefault();
+                        return;
+                    }
+
+                    cierreConfirmado = true;
+                }
+            });
+
+            modalElement.addEventListener("shown.bs.modal", function () {
+
+                const socio = document.getElementById("IdSocio");
+
+                if (socio) {
+                    socio.focus();
+                }
+            });
+
+            modalElement.addEventListener("hidden.bs.modal", function () {
+
+                if (cierreConfirmado) {
+                    form.reset();
+                    cambios = false;
+                    cierreConfirmado = false;
+                }
+            });
+
+            const abrirAlCargar = @(abrirModal ? "true" : "false");
+
+            if (abrirAlCargar) {
+                modal.show();
+            }
+        });
+    </script>
+}
