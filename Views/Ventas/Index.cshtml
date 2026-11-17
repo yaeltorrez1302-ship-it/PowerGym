@@ -1,0 +1,246 @@
+@model IReadOnlyList<PowerGym.Models.ProductoVenta>
+@using System.Text.Json
+@using PowerGym.Models
+@{
+    ViewData["Title"] = "Registro de ventas";
+    var carritoInicial = ViewBag.CarritoInicial as string ?? "[]";
+    var clienteInicial = ViewBag.ClienteInicial as string ?? "Consumidor Final";
+    var ventaConfirmada = ViewBag.VentaConfirmada as Venta;
+    var confirmacion = TempData["VentaExitosa"] as string;
+    var errorVenta = ViewBag.ErrorVenta as string;
+    var catalogo = Model.Select(p => new
+    {
+        id = p.IdProducto,
+        nombre = p.Nombre,
+        precio = p.Precio
+    }).ToArray();
+}
+
+<h1 class="mb-3">Registro de ventas - POWER GYM</h1>
+<p class="text-muted">Operación maestro-detalle: los artículos se preparan en memoria y se guardan juntos al confirmar.</p>
+
+@if (!string.IsNullOrWhiteSpace(confirmacion))
+{
+    <div class="alert alert-success" role="status" id="confirmacionVenta">
+        <strong>@confirmacion</strong>
+    </div>
+}
+
+@if (!string.IsNullOrWhiteSpace(errorVenta))
+{
+    <div class="alert alert-warning" role="alert">@errorVenta</div>
+}
+
+@if (ventaConfirmada is not null)
+{
+    <div class="card mb-4" id="ventaGuardada">
+        <div class="card-header"><strong>Venta #@ventaConfirmada.Id guardada en PostgreSQL</strong></div>
+        <div class="card-body">
+            <p class="mb-2"><strong>Fecha:</strong> @ventaConfirmada.Fecha.ToString("dd/MM/yyyy HH:mm") &nbsp; | &nbsp;
+               <strong>Cliente:</strong> @ventaConfirmada.Cliente</p>
+            <div class="table-responsive">
+                <table class="table table-sm table-bordered align-middle">
+                    <thead><tr><th>Artículo</th><th class="text-end">Cantidad</th><th class="text-end">Precio unitario</th><th class="text-end">Subtotal</th></tr></thead>
+                    <tbody>
+                    @foreach (var detalle in ventaConfirmada.Detalles)
+                    {
+                        <tr>
+                            <td>@detalle.NombreProducto</td>
+                            <td class="text-end">@detalle.Cantidad</td>
+                            <td class="text-end">Bs. @detalle.PrecioUnitario.ToString("N2")</td>
+                            <td class="text-end">Bs. @detalle.Subtotal.ToString("N2")</td>
+                        </tr>
+                    }
+                    </tbody>
+                    <tfoot><tr><th colspan="3" class="text-end">TOTAL GUARDADO</th>
+                        <th class="text-end">Bs. @ventaConfirmada.Total.ToString("N2")</th></tr></tfoot>
+                </table>
+            </div>
+        </div>
+    </div>
+}
+
+<form asp-controller="Ventas" asp-action="Registrar" method="post" id="formVenta" novalidate>
+    @Html.AntiForgeryToken()
+    <input type="hidden" id="detallesJson" name="detallesJson" value="[]" />
+
+    <div class="card mb-3">
+        <div class="card-header"><strong>1. Cabecera de venta</strong></div>
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-5">
+                    <label class="form-label" for="cliente">Cliente</label>
+                    <input id="cliente" name="cliente" class="form-control" maxlength="150"
+                           value="@clienteInicial" placeholder="Consumidor Final" />
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Fecha de la venta</label>
+                    <div class="form-control bg-light">@DateTime.Now.ToString("dd/MM/yyyy HH:mm")</div>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Total general (Bs.)</label>
+                    <div class="form-control fw-bold" id="totalCabecera" aria-live="polite">0,00</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card mb-3">
+        <div class="card-header"><strong>2. Detalle de venta (en memoria)</strong></div>
+        <div class="card-body">
+            <div class="row g-3 align-items-end mb-3">
+                <div class="col-md-6">
+                    <label for="productoSelect" class="form-label">Artículo</label>
+                    <select id="productoSelect" class="form-select">
+                        <option value="">Selecciona un artículo</option>
+                        @foreach (var producto in Model)
+                        {
+                            <option value="@producto.IdProducto">@producto.Nombre - Bs. @producto.Precio.ToString("N2")</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label for="cantidad" class="form-label">Cantidad</label>
+                    <input id="cantidad" type="number" class="form-control" value="1" min="1" max="1000" step="1" />
+                </div>
+                <div class="col-md-4">
+                    <button type="button" id="agregar" class="btn btn-primary w-100">Agregar artículo</button>
+                </div>
+            </div>
+            <div id="mensajeVenta" class="alert alert-warning d-none" role="alert" aria-live="assertive"></div>
+            <div class="table-responsive">
+                <table class="table table-striped align-middle">
+                    <thead class="table-dark">
+                        <tr><th>Artículo</th><th class="text-end">Cantidad</th><th class="text-end">Precio (Bs.)</th>
+                            <th class="text-end">Subtotal (Bs.)</th><th>Acción</th></tr>
+                    </thead>
+                    <tbody id="cuerpoDetalle">
+                        <tr><td colspan="5" class="text-center text-muted">No hay artículos agregados todavía.</td></tr>
+                    </tbody>
+                    <tfoot>
+                        <tr><th colspan="3" class="text-end">TOTAL GENERAL</th>
+                            <th class="text-end" id="totalDetalle">Bs. 0,00</th><th></th></tr>
+                    </tfoot>
+                </table>
+            </div>
+            <p class="text-muted small mb-0">Puedes agregar o quitar artículos antes de guardar. Los precios definitivos se verifican en PostgreSQL.</p>
+        </div>
+    </div>
+
+    <div class="d-flex justify-content-end gap-2 mb-4">
+        <button type="button" id="limpiar" class="btn btn-outline-secondary">Vaciar carrito</button>
+        <button type="submit" id="confirmar" class="btn btn-success">Confirmar venta</button>
+    </div>
+</form>
+
+@section Scripts {
+<script>
+(() => {
+    const catalogo = @Html.Raw(JsonSerializer.Serialize(catalogo));
+    const carritoInicial = @Html.Raw(carritoInicial);
+    const carrito = [];
+    const select = document.getElementById('productoSelect');
+    const cantidad = document.getElementById('cantidad');
+    const tabla = document.getElementById('cuerpoDetalle');
+    const totalDetalle = document.getElementById('totalDetalle');
+    const totalCabecera = document.getElementById('totalCabecera');
+    const mensaje = document.getElementById('mensajeVenta');
+    const oculto = document.getElementById('detallesJson');
+    const formato = new Intl.NumberFormat('es-BO', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const buscar = id => catalogo.find(p => p.id === id);
+
+    function advertir(texto) {
+        mensaje.textContent = texto;
+        mensaje.classList.remove('d-none');
+        mensaje.focus();
+    }
+    function ocultarAviso() { mensaje.textContent = ''; mensaje.classList.add('d-none'); }
+    function dibujar() {
+        tabla.replaceChildren();
+        let total = 0;
+        for (const linea of carrito) {
+            const producto = buscar(linea.idProducto);
+            if (!producto) continue;
+            const subtotal = linea.cantidad * Number(producto.precio);
+            total += subtotal;
+            const tr = document.createElement('tr');
+            const agregarCelda = (texto, alinear = false) => {
+                const td = document.createElement('td');
+                td.textContent = texto;
+                if (alinear) td.className = 'text-end';
+                tr.appendChild(td);
+            };
+            agregarCelda(producto.nombre);
+            agregarCelda(String(linea.cantidad), true);
+            agregarCelda(formato.format(producto.precio), true);
+            agregarCelda(formato.format(subtotal), true);
+            const acciones = document.createElement('td');
+            const quitar = document.createElement('button');
+            quitar.type = 'button';
+            quitar.className = 'btn btn-sm btn-outline-danger';
+            quitar.textContent = 'Quitar';
+            quitar.addEventListener('click', () => {
+                const indice = carrito.findIndex(p => p.idProducto === linea.idProducto);
+                if (indice >= 0) carrito.splice(indice, 1);
+                ocultarAviso(); dibujar();
+            });
+            acciones.appendChild(quitar);
+            tr.appendChild(acciones);
+            tabla.appendChild(tr);
+        }
+        if (carrito.length === 0) {
+            const tr = document.createElement('tr');
+            const td = document.createElement('td');
+            td.colSpan = 5;
+            td.className = 'text-center text-muted';
+            td.textContent = 'No hay artículos agregados todavía.';
+            tr.appendChild(td);
+            tabla.appendChild(tr);
+        }
+        totalDetalle.textContent = 'Bs. ' + formato.format(total);
+        totalCabecera.textContent = formato.format(total);
+        oculto.value = JSON.stringify(carrito);
+    }
+    document.getElementById('agregar').addEventListener('click', () => {
+        const id = Number(select.value);
+        const qty = Number(cantidad.value);
+        const producto = buscar(id);
+        if (!producto) return advertir('Selecciona el artículo que deseas agregar.');
+        if (!Number.isSafeInteger(qty) || qty <= 0 || qty > 1000)
+            return advertir('Ingresa una cantidad entera entre 1 y 1000.');
+        const anterior = carrito.find(x => x.idProducto === id);
+        if (anterior && anterior.cantidad + qty > 1000)
+            return advertir('La cantidad total de ese artículo no puede superar 1000.');
+        if (anterior) anterior.cantidad += qty;
+        else carrito.push({ idProducto: id, cantidad: qty });
+        ocultarAviso(); dibujar();
+    });
+    document.getElementById('limpiar').addEventListener('click', () => {
+        if (carrito.length && !confirm('¿Vaciar el carrito sin guardar los artículos?')) return;
+        carrito.splice(0);
+        ocultarAviso(); dibujar();
+    });
+    document.getElementById('formVenta').addEventListener('submit', event => {
+        if (!carrito.length) {
+            event.preventDefault();
+            return advertir('Agrega al menos un artículo antes de confirmar la venta.');
+        }
+        const cliente = document.getElementById('cliente').value.trim();
+        if (cliente.length > 150) {
+            event.preventDefault();
+            return advertir('El nombre del cliente debe tener como máximo 150 caracteres.');
+        }
+        document.getElementById('confirmar').disabled = true;
+        document.getElementById('confirmar').textContent = 'Guardando...';
+    });
+    // Restaurar carrito en caso de validación del servidor.
+    for (const linea of carritoInicial) {
+        const id = Number(linea.IdProducto ?? linea.idProducto);
+        const qty = Number(linea.Cantidad ?? linea.cantidad);
+        if (buscar(id) && Number.isSafeInteger(qty) && qty > 0 && qty <= 1000)
+            carrito.push({ idProducto: id, cantidad: qty });
+    }
+    dibujar();
+})();
+</script>
+}

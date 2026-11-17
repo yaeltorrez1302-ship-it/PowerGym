@@ -1,6 +1,7 @@
 ﻿using PowerGym.Data;
 var builder=WebApplication.CreateBuilder(args);
 builder.Services.AddControllersWithViews();
+builder.Services.AddScoped<PowerGym.Data.VentaDAO>();
 builder.Services.AddSingleton<DbConnectionFactory>();
 builder.Services.AddScoped<SocioDAO>();
 builder.Services.AddScoped<MembresiaDAO>();
@@ -15,4 +16,5 @@ app.UseRouting();
 app.UseAuthorization();
 app.MapControllerRoute(name:"default",pattern:"{controller=Home}/{action=Index}/{id?}");
 app.Run();
+
 
