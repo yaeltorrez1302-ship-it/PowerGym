@@ -8,6 +8,8 @@
     var ventaConfirmada = ViewBag.VentaConfirmada as Venta;
     var confirmacion = TempData["VentaExitosa"] as string;
     var errorVenta = ViewBag.ErrorVenta as string;
+    var tipoInicial = ViewBag.TipoDescuentoInicial as string ?? "NINGUNO";
+    var valorInicial = ViewBag.ValorDescuentoInicial as string ?? "0";
     var catalogo = Model.Select(p => new
     {
         id = p.IdProducto,
@@ -18,6 +20,11 @@
 
 <h1 class="mb-3">Registro de ventas - POWER GYM</h1>
 <p class="text-muted">Operación maestro-detalle: los artículos se preparan en memoria y se guardan juntos al confirmar.</p>
+<p><strong>Vendedor:</strong> @User.Identity?.Name</p>
+<form asp-controller="Acceso" asp-action="Salir" method="post" class="mb-3">
+    @Html.AntiForgeryToken()
+    <button class="btn btn-outline-secondary" type="submit">Cerrar sesión</button>
+</form>
 
 @if (!string.IsNullOrWhiteSpace(confirmacion))
 {
@@ -38,6 +45,7 @@
         <div class="card-body">
             <p class="mb-2"><strong>Fecha:</strong> @ventaConfirmada.Fecha.ToString("dd/MM/yyyy HH:mm") &nbsp; | &nbsp;
                <strong>Cliente:</strong> @ventaConfirmada.Cliente</p>
+            <p class="mb-2"><strong>Vendedor responsable:</strong> @ventaConfirmada.VendedorNombre</p>
             <div class="table-responsive">
                 <table class="table table-sm table-bordered align-middle">
                     <thead><tr><th>Artículo</th><th class="text-end">Cantidad</th><th class="text-end">Precio unitario</th><th class="text-end">Subtotal</th></tr></thead>
@@ -52,8 +60,11 @@
                         </tr>
                     }
                     </tbody>
-                    <tfoot><tr><th colspan="3" class="text-end">TOTAL GUARDADO</th>
-                        <th class="text-end">Bs. @ventaConfirmada.Total.ToString("N2")</th></tr></tfoot>
+                    <tfoot>
+                        <tr><th colspan="3" class="text-end">SUBTOTAL</th><th class="text-end">Bs. @ventaConfirmada.Subtotal.ToString("N2")</th></tr>
+                        <tr><th colspan="3" class="text-end">DESCUENTO APLICADO</th><th class="text-end">Bs. @ventaConfirmada.DescuentoAplicado.ToString("N2")</th></tr>
+                        <tr><th colspan="3" class="text-end">TOTAL GUARDADO</th><th class="text-end">Bs. @ventaConfirmada.Total.ToString("N2")</th></tr>
+                    </tfoot>
                 </table>
             </div>
         </div>
@@ -82,6 +93,26 @@
                     <div class="form-control fw-bold" id="totalCabecera" aria-live="polite">0,00</div>
                 </div>
             </div>
+            <div class="row g-3 mt-2">
+                <div class="col-md-4">
+                    <label for="tipoDescuento" class="form-label">Tipo de descuento</label>
+                    <select id="tipoDescuento" name="tipoDescuento" class="form-select">
+                        <option value="NINGUNO">Sin descuento</option>
+                        <option value="PORCENTAJE">Porcentaje (%)</option>
+                        <option value="MONTO">Importe (Bs.)</option>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label for="valorDescuento" class="form-label">Valor del descuento</label>
+                    <input id="valorDescuento" name="valorDescuento" type="number" min="0" step="0.01"
+                           class="form-control" value="@valorInicial" />
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Descuento estimado (Bs.)</label>
+                    <div id="descuentoEstimado" class="form-control bg-light">0,00</div>
+                </div>
+            </div>
+            <p class="mt-2 mb-0">El descuento máximo es el 20 % del subtotal. El servidor recalcula y valida los importes.</p>
         </div>
     </div>
 
@@ -118,7 +149,7 @@
                         <tr><td colspan="5" class="text-center text-muted">No hay artículos agregados todavía.</td></tr>
                     </tbody>
                     <tfoot>
-                        <tr><th colspan="3" class="text-end">TOTAL GENERAL</th>
+                        <tr><th colspan="3" class="text-end">SUBTOTAL</th>
                             <th class="text-end" id="totalDetalle">Bs. 0,00</th><th></th></tr>
                     </tfoot>
                 </table>
@@ -138,6 +169,11 @@
 (() => {
     const catalogo = @Html.Raw(JsonSerializer.Serialize(catalogo));
     const carritoInicial = @Html.Raw(carritoInicial);
+    const tipoInicial = @Html.Raw(JsonSerializer.Serialize(tipoInicial));
+    const tipoDescuento = document.getElementById('tipoDescuento');
+    const valorDescuento = document.getElementById('valorDescuento');
+    const descuentoEstimado = document.getElementById('descuentoEstimado');
+    tipoDescuento.value = ['NINGUNO', 'PORCENTAJE', 'MONTO'].includes(tipoInicial) ? tipoInicial : 'NINGUNO';
     const carrito = [];
     const select = document.getElementById('productoSelect');
     const cantidad = document.getElementById('cantidad');
@@ -198,9 +234,26 @@
             tabla.appendChild(tr);
         }
         totalDetalle.textContent = 'Bs. ' + formato.format(total);
-        totalCabecera.textContent = formato.format(total);
+        const tipo = tipoDescuento.value;
+        const valor = Number(valorDescuento.value);
+        let descuento = 0;
+        if (Number.isFinite(valor) && valor >= 0 && valor <= 99999999.99) {
+            descuento = tipo === 'PORCENTAJE' ? Math.round(total * valor) / 100 :
+                tipo === 'MONTO' ? valor : 0;
+        }
+        const maximo = Math.round(total * 20) / 100;
+        const correcto = Number.isFinite(valor) && valor >= 0 &&
+            (tipo === 'NINGUNO' ? valor === 0 : tipo === 'PORCENTAJE' ? valor <= 20 : descuento <= maximo) &&
+            Math.abs(Math.round(valor * 100) - valor * 100) < 0.00001;
+        descuentoEstimado.textContent = correcto ? formato.format(descuento) : 'Revisar descuento';
+        totalCabecera.textContent = correcto ? formato.format(Math.max(0, total - descuento)) : 'Revisar descuento';
         oculto.value = JSON.stringify(carrito);
     }
+    tipoDescuento.addEventListener('change', () => {
+        if (tipoDescuento.value === 'NINGUNO') valorDescuento.value = '0';
+        ocultarAviso(); dibujar();
+    });
+    valorDescuento.addEventListener('input', () => { ocultarAviso(); dibujar(); });
     document.getElementById('agregar').addEventListener('click', () => {
         const id = Number(select.value);
         const qty = Number(cantidad.value);
@@ -229,6 +282,17 @@
         if (cliente.length > 150) {
             event.preventDefault();
             return advertir('El nombre del cliente debe tener como máximo 150 caracteres.');
+        }
+        const valor = Number(valorDescuento.value);
+        const tipo = tipoDescuento.value;
+        if (!Number.isFinite(valor) || valor < 0 || Math.abs(valor * 100 - Math.round(valor * 100)) > 0.00001 ||
+            (tipo === 'NINGUNO' && valor !== 0) || (tipo === 'PORCENTAJE' && valor > 20) ||
+            (tipo === 'MONTO' && valor > Math.round(carrito.reduce((s, l) => {
+                const p = buscar(l.idProducto);
+                return s + l.cantidad * Number(p?.precio || 0);
+            }, 0) * 20) / 100)) {
+            event.preventDefault();
+            return advertir('El descuento debe ser válido y no superar el 20 % de la venta.');
         }
         document.getElementById('confirmar').disabled = true;
         document.getElementById('confirmar').textContent = 'Guardando...';

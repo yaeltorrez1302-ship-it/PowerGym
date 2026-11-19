@@ -1,0 +1,23 @@
+@{
+    ViewData["Title"] = "Ingreso de vendedores";
+    var returnUrl = ViewBag.ReturnUrl as string ?? "/Ventas";
+}
+<h1 class="mb-3">Ingreso de vendedores - POWER GYM</h1>
+<p>Inicia sesión para registrar ventas. Tu identidad se guardará automáticamente en la auditoría.</p>
+@if (ViewBag.ErrorAcceso is string error)
+{
+    <div class="alert alert-warning" role="alert">@error</div>
+}
+<form asp-controller="Acceso" asp-action="Entrar" method="post" class="col-md-5">
+    @Html.AntiForgeryToken()
+    <input type="hidden" name="returnUrl" value="@returnUrl" />
+    <div class="mb-3">
+        <label class="form-label" for="usuario">Usuario</label>
+        <input id="usuario" name="usuario" class="form-control" maxlength="60" autocomplete="username" required />
+    </div>
+    <div class="mb-3">
+        <label class="form-label" for="clave">Contraseña</label>
+        <input id="clave" name="clave" type="password" class="form-control" autocomplete="current-password" required />
+    </div>
+    <button type="submit" class="btn btn-primary">Ingresar</button>
+</form>

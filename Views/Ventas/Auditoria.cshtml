@@ -1,0 +1,27 @@
+@model IReadOnlyList<PowerGym.Data.AuditoriaDescuentoFila>
+@{
+    ViewData["Title"] = "Auditoría de descuentos";
+}
+<h1 class="mb-3">Auditoría de descuentos - POWER GYM</h1>
+<p>Últimas 200 operaciones con descuento, asociadas al vendedor autenticado.</p>
+<div class="table-responsive">
+    <table class="table table-bordered table-striped">
+        <thead><tr><th>Venta</th><th>Fecha</th><th>Cliente</th><th>Vendedor</th><th>ID vendedor</th><th>Tipo</th>
+            <th>Subtotal (Bs.)</th><th>Descuento (Bs.)</th><th>Total (Bs.)</th></tr></thead>
+        <tbody>
+        @foreach (var linea in Model)
+        {
+            <tr>
+                <td>@linea.IdVenta</td><td>@linea.Fecha.ToString("dd/MM/yyyy HH:mm")</td>
+                <td>@linea.Cliente</td><td>@linea.Vendedor</td><td>@linea.VendedorId</td><td>@linea.Tipo</td>
+                <td>@linea.Subtotal.ToString("N2")</td><td>@linea.Descuento.ToString("N2")</td>
+                <td>@linea.Total.ToString("N2")</td>
+            </tr>
+        }
+        </tbody>
+    </table>
+</div>
+@if (Model.Count == 0)
+{
+    <p>No hay descuentos registrados todavía.</p>
+}
