@@ -3,14 +3,22 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Npgsql;
 using PowerGym.Data;
+using PowerGym.Services;
 
 namespace PowerGym.Controllers;
 
 public sealed class AccesoController : Controller
 {
     private readonly VendedorDAO _usuarios;
-    public AccesoController(VendedorDAO usuarios) => _usuarios = usuarios;
+    private readonly ILogger<AccesoController> _logger;
+
+    public AccesoController(VendedorDAO usuarios, ILogger<AccesoController> logger)
+    {
+        _usuarios = usuarios;
+        _logger = logger;
+    }
 
     [HttpGet, AllowAnonymous]
     public IActionResult Entrar(string? returnUrl = null)
@@ -19,14 +27,44 @@ public sealed class AccesoController : Controller
         return View();
     }
 
+    // OP-5: autenticar sin exponer detalles tecnicos ni las contrasenas.
     [HttpPost, AllowAnonymous, ValidateAntiForgeryToken]
     public async Task<IActionResult> Entrar(string? usuario, string? clave, string? returnUrl)
     {
         ViewBag.ReturnUrl = Url.IsLocalUrl(returnUrl) ? returnUrl : "/Ventas";
-        var vendedor = await _usuarios.AutenticarAsync(usuario, clave);
+        if (string.IsNullOrWhiteSpace(usuario) || string.IsNullOrEmpty(clave))
+        {
+            ViewBag.ErrorAcceso = "Completa el usuario y la contraseña para continuar.";
+            return View();
+        }
+
+        VendedorSesion? vendedor;
+        try
+        {
+            vendedor = await _usuarios.AutenticarAsync(usuario, clave);
+        }
+        catch (PostgresException ex)
+        {
+            _logger.LogError(ex, "OP-5 fallo PostgreSQL al autenticar vendedor");
+            ViewBag.ErrorAcceso = MensajesErrorUx.AccesoTemporal;
+            return View();
+        }
+        catch (NpgsqlException ex)
+        {
+            _logger.LogError(ex, "OP-5 conexion no disponible al autenticar vendedor");
+            ViewBag.ErrorAcceso = MensajesErrorUx.AccesoTemporal;
+            return View();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "OP-5 error inesperado al autenticar vendedor");
+            ViewBag.ErrorAcceso = MensajesErrorUx.Inesperado;
+            return View();
+        }
+
         if (vendedor is null)
         {
-            ViewBag.ErrorAcceso = "Usuario o contraseña incorrectos.";
+            ViewBag.ErrorAcceso = "Usuario o contraseña incorrectos. Revisa tus datos e inténtalo nuevamente.";
             return View();
         }
         var claims = new[]
